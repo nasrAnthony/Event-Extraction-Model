@@ -1,8 +1,12 @@
 import os
 import csv
 import pandas as pd
+from pathlib import Path
 
 
+ROOT = Path(__file__).resolve().parent.parent
+RAW = ROOT / "data" / "raw" # @Yhilal02 These will need to change depending on where the data will be taken from
+CLEANED = ROOT / "data" / "cleaned"
 
 def get_headers(fp: str) -> list[str]:
     with open(fp, 'r', newline='', encoding='utf8') as f:
@@ -25,6 +29,7 @@ def fuse(raw_fp:str, target: str, files: list[str]) -> None:
             file_path = os.path.join(raw_fp, file)
             # Read the CSV file and append it to the list
             df = pd.read_csv(file_path)
+            df["source"] = Path(file).stem
             dataframes.append(df)
 
     combined_df = pd.concat(dataframes, ignore_index=True)
@@ -33,14 +38,12 @@ def fuse(raw_fp:str, target: str, files: list[str]) -> None:
 
 if __name__ == "__main__":
 
-    raw_data_folder = os.path.join(os.getcwd(), "../data", "raw")
-    cleaned_data_folder = os.path.join(os.getcwd(), "../data", "cleaned")
-    files = os.listdir(raw_data_folder)
+    files = [f.name for f in RAW.glob("*.csv")]
     
     #fetch headers from first csv (other files should have the same headers)... 
-    headers = get_headers(os.path.join(raw_data_folder, files[0]))
-    fuse(raw_fp=raw_data_folder, 
-         target=cleaned_data_folder, 
+    headers = get_headers(os.path.join(RAW, files[0]))
+    fuse(raw_fp=str(RAW), 
+         target=str(CLEANED), 
          files=files)
 
 

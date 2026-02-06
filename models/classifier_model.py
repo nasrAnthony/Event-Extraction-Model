@@ -1,7 +1,7 @@
 import pandas as pd
 from pathlib import Path
 from catboost import CatBoostClassifier
-from sklearn.model_selection import GroupShuffleSplit, train_test_split, cross_validate
+from sklearn.model_selection import GroupShuffleSplit, cross_validate
 from sklearn.metrics import confusion_matrix, accuracy_score
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -12,7 +12,7 @@ DATA = ROOT / "data"
 dataset = pd.read_csv(DATA / "full_data.csv")
 dataset["is_event"] = dataset["event_id"].notna().astype(int)
 
-cols = ["is_event", "source", "event_id", "label"] # cols not used for classifier
+cols = ["is_event", "source", "event_id", "label", "attributes", "link"] # columns not used for classifier
 X = dataset.drop(columns=cols, axis=1)
 y = dataset["is_event"]
 
@@ -31,13 +31,18 @@ y_train, y_test = dataset.iloc[train_idx]["is_event"], dataset.iloc[test_idx]["i
 
 # CatBoost model-----------------------------------------------------------------
 cat_features = ["tag", "parent_tag"] # categorical features
-text_features = ["text_context", "attributes", "link"]
+text_features = ["text_context"]
+# link and attribute have too many missing rows to be usable
 
+for c in text_features:
+    X_train[c] = X_train[c].fillna("").astype(str)
+    X_test[c]  = X_test[c].fillna("").astype(str)
+    
 classifier = CatBoostClassifier(iterations=1000, task_type="GPU", verbose=False)
 print("Starting Training..")
-classifier.fit(X_train,y_train,cat_features=cat_features)
+classifier.fit(X_train,y_train,cat_features=cat_features, text_features=text_features)
 print("Training Done! Saving Model :)")
-classifier.save_model("catboost_event_classifier.cbm")
+classifier.save_model(fname="classifier", format="cbm")
 
 y_pred = classifier.predict(X_test)
 

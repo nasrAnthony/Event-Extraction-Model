@@ -5,8 +5,8 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
-RAW = ROOT / "data" / "raw" # @Yhilal02 These will need to change depending on where the data will be taken from
 CLEANED = ROOT / "data" / "cleaned"
+CONCAT = ROOT / "data" 
 
 def get_headers(fp: str) -> list[str]:
     with open(fp, 'r', newline='', encoding='utf8') as f:
@@ -19,14 +19,14 @@ def get_headers(fp: str) -> list[str]:
     return []
 
 
-def fuse(raw_fp:str, target: str, files: list[str]) -> None:
+def fuse(clean_fp:str, target: str, files: list[str]) -> None:
     """
     target is the fp where you want to write out the result
     """
     dataframes = []
     for file in files:
         if file.endswith(".csv"):
-            file_path = os.path.join(raw_fp, file)
+            file_path = os.path.join(clean_fp, file)
             # Read the CSV file and append it to the list
             df = pd.read_csv(file_path)
             df["source"] = Path(file).stem
@@ -38,12 +38,12 @@ def fuse(raw_fp:str, target: str, files: list[str]) -> None:
 
 if __name__ == "__main__":
 
-    files = [f.name for f in RAW.glob("*.csv")]
+    files = [f.name for f in CLEANED.glob("*.csv")]
     
     #fetch headers from first csv (other files should have the same headers)... 
-    headers = get_headers(os.path.join(RAW, files[0]))
-    fuse(raw_fp=str(RAW), 
-         target=str(CLEANED), 
+    headers = get_headers(os.path.join(CLEANED, files[0]))
+    fuse(clean_fp=str(CLEANED), 
+         target=str(CONCAT), 
          files=files)
 
 

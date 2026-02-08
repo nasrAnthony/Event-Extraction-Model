@@ -2,7 +2,7 @@ import pandas as pd
 from pathlib import Path
 from catboost import CatBoostClassifier
 from sklearn.model_selection import GroupShuffleSplit, cross_validate
-from sklearn.metrics import confusion_matrix, accuracy_score
+from sklearn.metrics import confusion_matrix, accuracy_score, f1_score, precision_score, recall_score
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
@@ -17,7 +17,7 @@ X = dataset.drop(columns=cols, axis=1)
 y = dataset["is_event"]
 
 # train/test split by source ----------------------------------------------------
-gss = GroupShuffleSplit(n_splits=1, test_size=0.2)
+gss = GroupShuffleSplit(n_splits=1, test_size=0.2, random_state=42)
 
 train_idx, test_idx = next(gss.split(X, y, groups=dataset["source"]))
 
@@ -40,9 +40,9 @@ for c in text_features:
     
 classifier = CatBoostClassifier(iterations=1000, task_type="GPU", verbose=False)
 print("Starting Training..")
-classifier.fit(X_train,y_train,cat_features=cat_features, text_features=text_features)
+classifier.fit(X_train,y_train,cat_features=cat_features, text_features=text_features) # implement early stopping or not needed?
 print("Training Done! Saving Model :)")
-classifier.save_model(fname="classifier", format="cbm")
+classifier.save_model(fname="classifier.cbm") # @Yhilal02 need to fix/test this when integrating pipeline
 
 y_pred = classifier.predict(X_test)
 
@@ -50,17 +50,22 @@ y_pred = classifier.predict(X_test)
 # confusion matrix/accuracy score
 cm = confusion_matrix(y_test, y_pred)
 acc = accuracy_score(y_test, y_pred)
+prec = precision_score(y_test, y_pred)
+rec = recall_score(y_test, y_pred)
+f1 = f1_score(y_test, y_pred)
 
 print(cm)
 print(f"Accuracy: {acc:.2f}")
+print(f"Precision: {prec:.2f}")
+print(f"Recall: {rec:.2f}")
+print(f"F1 Score: {f1:.2f}")
 
 # # cross validation (used in baseline test, revisit later)
 # cv_out = cross_validate(
 #     estimator=CatBoostClassifier(verbose=False),
 #     X=X_train,
 #     y=y_train,
-#     cv=20
-#     params={"cat_features": cat_features}
+#     params={"cat_features": cat_features, "text_features": text_features}
 # )
 
 # scores = cv_out["test_score"]

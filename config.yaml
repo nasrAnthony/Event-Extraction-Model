@@ -1,0 +1,57 @@
+model:
+  name: "distilbert-base-uncased"
+  d_model: 128
+  nhead: 4
+  num_layers: 2
+  dropout: 0.2
+  max_tokens: 64
+
+training:
+  epochs: 20
+  freeze_epochs: 4
+  batch_size: 2
+  lr_bert: 5e-6
+  lr_other: 1e-4
+  weight_decay: 0.01
+  n_splits: 5
+  seed: 42
+
+inference:
+  nms_k: 1
+  min_gap: 2
+  tol: 1
+
+features:
+  num_cols:
+    - depth
+    - sibling_index
+    - children_count
+    - same_tag_sibling_count
+    - same_text_sibling_count
+    - text_length
+    - word_count
+    - letter_ratio
+    - digit_ratio
+    - whitespace_ratio
+    - attribute_count
+  bool_cols:
+    - has_link
+    - link_is_absolute
+    - parent_has_link
+    - is_leaf
+    - contains_date
+    - contains_time
+    - starts_with_digit
+    - ends_with_digit
+    - has_class
+    - has_id
+    - attr_has_word_name
+    - attr_has_word_date
+    - attr_has_word_time
+    - attr_has_word_location
+    - attr_has_word_link
+    - text_has_word_name
+    - text_has_word_date
+    - text_word_time
+    - text_word_description
+    - text_word_location

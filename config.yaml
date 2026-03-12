@@ -5,6 +5,8 @@ model:
   num_layers: 2
   dropout: 0.2
   max_tokens: 64
+  use_tag: True
+  use_parent_tag: True
 
 training:
   epochs: 20

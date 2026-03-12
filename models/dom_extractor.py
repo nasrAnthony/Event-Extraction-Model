@@ -17,7 +17,9 @@ class DOMAwareEventExtractor(nn.Module):
         d_model: int = 128,
         nhead: int = 4,
         num_layers: int = 2,
-        dropout: float = 0.2
+        dropout: float = 0.2,
+        use_tag=True, 
+        use_parent_tag=True
     ):
         super().__init__()
 
@@ -25,10 +27,15 @@ class DOMAwareEventExtractor(nn.Module):
         self.text_encoder = AutoModel.from_pretrained(text_model_name)
         text_dim = self.text_encoder.config.hidden_size
         self.text_proj = nn.Linear(text_dim, d_model)
+        
+        if use_tag:
+            self.tag_emb = nn.Embedding(tag_vocab_size, d_model)
+        if use_parent_tag:
+            self.parent_tag_emb = nn.Embedding(parent_tag_vocab_size, d_model)
+        self.use_tag = use_tag
+        self.use_parent_tag = use_parent_tag
 
         # node embeddings
-        self.tag_emb = nn.Embedding(tag_vocab_size, d_model)
-        self.parent_tag_emb = nn.Embedding(parent_tag_vocab_size, d_model)
         self.num_proj = nn.Linear(num_numeric_features, d_model)
         self.bool_proj = nn.Linear(num_bool_features, d_model)
 
@@ -63,11 +70,14 @@ class DOMAwareEventExtractor(nn.Module):
         # combine all node features
         x = (
             packed
-            + self.tag_emb(tag_id)
-            + self.parent_tag_emb(parent_tag_id)
             + self.num_proj(num_feats)
             + self.bool_proj(bool_feats)
         )
+        if self.use_tag:
+            x = x + self.tag_emb(tag_id)
+        if self.use_parent_tag:
+            x = x + self.parent_tag_emb(parent_tag_id)
+            
         x = self.layernorm(x)
 
         # run through DOM transformer
@@ -98,6 +108,8 @@ def init_model_and_optim(cfg, tag_vocab_size, parent_tag_vocab_size,
         nhead=model_cfg["nhead"],
         num_layers=model_cfg["num_layers"],
         dropout=model_cfg["dropout"]
+        use_tag=model_cfg.get("use_tag", True),
+        use_parent_tag=model_cfg.get("use_parent_tag", True)
     ).to(device)
 
     bert_params = []
@@ -109,8 +121,8 @@ def init_model_and_optim(cfg, tag_vocab_size, parent_tag_vocab_size,
             other_params.append(p)
 
     optimizer = torch.optim.AdamW([
-            {"params": bert_params, "lr": training_cfg["lr_bert"], "weight_decay": training_cfg["weight_deacy"]},
-            {"params": other_params, "lr": training_cfg["lr_other"], "weight_decay": training_cfg["weight_decay"]},
+            {"params": bert_params, "lr": float(training_cfg["lr_bert"]), "weight_decay": float(training_cfg["weight_decay"])},
+            {"params": other_params, "lr": float(training_cfg["lr_other"]), "weight_decay": float(training_cfg["weight_decay"])},
         ])
 
     return model, optimizer

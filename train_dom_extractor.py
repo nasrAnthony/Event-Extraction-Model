@@ -1,4 +1,3 @@
-import copy
 import numpy as np
 import pandas as pd
 import torch
@@ -142,7 +141,7 @@ for fold, (tr_idx, va_idx) in enumerate(kf.split(cv_sources), start=1):
             set_bert_trainable(model, True)
 
         tr_loss = run_epoch(model, optimizer, train_loader, loss_fn, DEVICE, training=True)
-        val_loss = run_epoch(model, optimizer, val_loader, loss_fn, DEVICE, training=True)
+        val_loss = run_epoch(model, optimizer, val_loader, loss_fn, DEVICE, training=False)
 
         th, f1 = find_best_threshold_peak( val_loader, model, DEVICE,
                                           nms_k=cfg["inference"]["nms_k"],

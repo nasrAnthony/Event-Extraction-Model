@@ -24,18 +24,20 @@ LABEL_MERGE_MAP = {
     # Location variants
     "Location": "Location",
     
+    # Price variants
+    "Price": "Price",
+    
     # Description variants
     "Description": "Description", "Desc": "Description", "Details": "Description",
 }
 
-def merge_labels(df, label_col="label", mapping=None, default_to_other=True):
+def merge_labels(df, label_col="label", mapping=LABEL_MERGE_MAP):
     """
     function to merge similar labels based on mapping
     returns a copy of the input df with merged labels
     """
     df = df.copy()
-    mapping = mapping or {}
-    df[label_col] = df[label_col].astype(str).map(mapping).fillna("Other")
+    df[label_col] = df[label_col].astype(str).str.strip().map(mapping).fillna("Other")
     return df
 
 

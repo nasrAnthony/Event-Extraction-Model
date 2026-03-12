@@ -29,7 +29,7 @@ def make_loader(df, tokenizer,
         shuffle=shuffle,
         collate_fn=partial(combine_pages, tokenizer=tokenizer),
         num_workers=num_workers,
-        pin_memory=True,
+        pin_memory=False,
         persistent_workers=True if num_workers > 0 else False
     )
 

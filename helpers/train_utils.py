@@ -10,7 +10,7 @@ def make_loader(df, tokenizer,
                  num_cols, bool_cols,
                  num_mean, num_std,
                  batch_size=2, max_tokens=64, 
-                 shuffle=False, num_workers=0):
+                 shuffle=True, num_workers=0):
     """
     Creates a single DataLoader for the given dataframe.
     shuffle=True for training, False for val/test/inference.

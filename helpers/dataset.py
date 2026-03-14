@@ -31,13 +31,17 @@ LABEL_MERGE_MAP = {
     "Description": "Description", "Desc": "Description", "Details": "Description",
 }
 
-def merge_labels(df, label_col="label", mapping=LABEL_MERGE_MAP):
-    """
-    function to merge similar labels based on mapping
-    returns a copy of the input df with merged labels
-    """
+def merge_labels(df, label_col="label", mapping=LABEL_MERGE_MAP, default_to_other=True):
     df = df.copy()
-    df[label_col] = df[label_col].astype(str).str.strip().map(mapping).fillna("Other")
+    mapping = mapping or {}
+
+    def _map(x):
+        x = str(x)
+        if x in mapping:
+            return mapping[x]
+        return "Other" if default_to_other else x
+
+    df[label_col] = df[label_col].map(_map)
     return df
 
 
@@ -58,6 +62,8 @@ class PageDataset(Dataset):
             mean = np.zeros((len(num_cols),), dtype="float32")
         if std is None:
             std = np.ones((len(num_cols),), dtype="float32")
+        self.num_mean = mean
+        self.num_std = std
 
         for src, g in df.groupby("source", sort=False):
             g = g.sort_values("rendering_order").reset_index(drop=True) # extra sort
@@ -107,6 +113,8 @@ def combine_pages(batch, tokenizer):
     returns a padded tensor with all node/page data
     """
     B = len(batch)
+    flat = []
+    node_offsets = []
 
     # flattening all text data across all pages [total nodes, token_length]
     flat_text = [
@@ -114,7 +122,7 @@ def combine_pages(batch, tokenizer):
         for x in batch
         for ids, mask in zip(x["input_ids"], x["attention_mask"])
     ]
-    enc = tokenizer.pad(flat_text, return_tensors="pt") # padding tokens to match max length
+    enc = tokenizer.pad(flat_text, padding =True, return_tensors="pt") # padding tokens to match max length
 
     # track where each pager's nodes start/end in a flat list
     lengths = [len(x["input_ids"]) for x in batch]  # num of nodes per page

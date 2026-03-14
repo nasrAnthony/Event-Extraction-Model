@@ -28,10 +28,8 @@ class DOMAwareEventExtractor(nn.Module):
         text_dim = self.text_encoder.config.hidden_size
         self.text_proj = nn.Linear(text_dim, d_model)
         
-        if use_tag:
-            self.tag_emb = nn.Embedding(tag_vocab_size, d_model)
-        if use_parent_tag:
-            self.parent_tag_emb = nn.Embedding(parent_tag_vocab_size, d_model)
+        self.tag_emb = nn.Embedding(tag_vocab_size, d_model)
+        self.parent_tag_emb = nn.Embedding(parent_tag_vocab_size, d_model)
         self.use_tag = use_tag
         self.use_parent_tag = use_parent_tag
 
@@ -43,19 +41,14 @@ class DOMAwareEventExtractor(nn.Module):
         
         # DOM transfromer part
         enc_layer = nn.TransformerEncoderLayer(
-            d_model=d_model,
-            nhead=nhead,
-            dropout=dropout,
-            batch_first=True  
+            d_model=d_model, nhead=nhead, dropout=dropout, batch_first=True  
         )
         self.node_encoder = nn.TransformerEncoder(enc_layer, num_layers=num_layers)
 
         # BIO prediction head
         self.bio_head = nn.Linear(d_model, 3) # O / B / I
 
-    def forward(self, enc, node_offsets, node_mask, tag_id, 
-                parent_tag_id, num_feats, bool_feats):
-        
+    def forward(self, enc, node_offsets, node_mask, tag_id, parent_tag_id, num_feats, bool_feats):
         # encode each node's text
         out = self.text_encoder(**enc)
         cls = out.last_hidden_state[:, 0, :]     # [total_nodes, text_dim]
@@ -107,7 +100,7 @@ def init_model_and_optim(cfg, tag_vocab_size, parent_tag_vocab_size,
         d_model=model_cfg["d_model"],
         nhead=model_cfg["nhead"],
         num_layers=model_cfg["num_layers"],
-        dropout=model_cfg["dropout"]
+        dropout=model_cfg["dropout"],
         use_tag=model_cfg.get("use_tag", True),
         use_parent_tag=model_cfg.get("use_parent_tag", True)
     ).to(device)

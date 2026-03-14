@@ -113,7 +113,6 @@ def combine_pages(batch, tokenizer):
     returns a padded tensor with all node/page data
     """
     B = len(batch)
-    flat = []
     node_offsets = []
 
     # flattening all text data across all pages [total nodes, token_length]

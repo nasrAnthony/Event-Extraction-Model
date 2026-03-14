@@ -44,7 +44,7 @@ def collect_page_probs_and_truth(loader, model, device):
                 if valid.numel() == 0:
                     continue
                 probs_valid = probs[b, valid].numpy() # [N_valid, 3]
-                prob_B = probs_valid[:, 1].numpy()
+                prob_B = probs_valid[:, 1]
                 true_valid = true_start[b, valid].numpy().astype(int)
                 out.append((probs_valid, prob_B, true_valid))
 
@@ -104,6 +104,7 @@ def start_prf_with_tolerance(true_starts, pred_starts, tol=1):
     """
     Return (tp, fp, fn) counts for a single page.
     A prediction counts as TP if within +/-tol of an unmatched true start.
+    Remember to use compute_prf after when needed
     """
     matched_true = set()
     tp = 0
@@ -145,7 +146,7 @@ def find_best_threshold_peak(loader, model, device,
     Return (best_threshold, best_f1)
     """
     if thresholds is None:
-        thresholds = np.linspace(0.05, 0.95, 19)
+        thresholds = np.arange(0.04, 0.41, 0.01)
 
     pages = collect_page_probs_and_truth(loader, model, device)
     if len(pages) == 0:

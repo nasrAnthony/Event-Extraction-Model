@@ -146,7 +146,7 @@ def find_best_threshold_peak(loader, model, device,
     Return (best_threshold, best_f1)
     """
     if thresholds is None:
-        thresholds = np.arange(0.04, 0.41, 0.01)
+        thresholds = np.arange(0.01, 0.2, 0.001)
 
     pages = collect_page_probs_and_truth(loader, model, device)
     if len(pages) == 0:
@@ -171,9 +171,9 @@ def find_best_threshold_peak(loader, model, device,
 
         if f1 > best_f1:
             best_f1 = f1
-            best_th = float(th)
+            best_th = th
 
-    return best_th, float(best_f1)
+    return float(best_th), float(best_f1)
 
 
 # Boundary metrics with a fixed threshold -----------------------------------------
@@ -190,7 +190,7 @@ def boundary_metrics_peak(loader, model, device,
 
     TP = FP = FN = 0
 
-    for prob_B, true_start in pages:
+    for probs_full, prob_B, true_start in pages:
         true_idx = np.where(true_start == 1)[0].tolist()
         pred_idx = pick_starts_from_probs(prob_B, threshold=threshold,
                                           nms_k=nms_k, min_gap=min_gap)
@@ -201,3 +201,20 @@ def boundary_metrics_peak(loader, model, device,
 
     return compute_prf(TP, FP, FN)
 
+def decode_bio_sequence(probs_full, start_indices):
+    """
+    Given confirmed start indices and full 3-class probs,
+    walk forward from each start collecting I nodes to find event spans.
+    Returns list of (start, end) tuples — one per event.
+    """
+    labels = probs_full.argmax(axis=1)  # 0=O, 1=B, 2=I
+    N = len(labels)
+    spans = []
+
+    for i, start in enumerate(start_indices):
+        end = start + 1
+        while end < N and labels[end] == 2:  # keep going while I
+            end += 1
+        spans.append((start, end))
+
+    return spans

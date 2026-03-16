@@ -19,7 +19,7 @@ def collect_page_probs_and_truth(loader, model, device):
             node_mask = batch["node_mask"].to(device)
 
             # run model and return bio logits for every node in every page
-            bio_logits = model(
+            bio_logits, _ = model(
                 enc=enc,
                 node_offsets=batch["node_offsets"],
                 node_mask = node_mask,

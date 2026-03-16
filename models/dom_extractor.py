@@ -78,7 +78,9 @@ class DOMAwareEventExtractor(nn.Module):
         x = self.node_encoder(x, src_key_padding_mask=key_padding_mask)
 
         # predict BIO logits per node
-        return self.bio_head(x) # [B, max_nodes, 3]
+        logits = self.bio_head(x)
+
+        return logits, x
     
 
 # Model/Optimizer Initialization ------------------------------------

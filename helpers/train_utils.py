@@ -2,6 +2,7 @@ import torch
 from functools import partial
 from torch.utils.data import DataLoader
 from helpers.dataset import PageDataset, combine_pages
+from helpers.losses import csel_loss
 
 
 # Data Loader ------------------------------------------------
@@ -37,10 +38,16 @@ def make_loader(df, tokenizer,
 # Single Training/Eval Epoch ------------------------------------------
 def run_epoch(model, optimizer, loader,
               loss_fn, device,
-              training=True):
+              training=True,
+              lambda_csel=0.0):
     """
     Runs one full pass through the loader.
     Returns average loss per batch.
+ 
+    Args:
+        lambda_csel : weight for the CSEL regularizer.
+                      0.0 (default) disables it entirely — safe for eval.
+                      Recommended starting value: 0.1
     """
     model.train() if training else model.eval()
     total_loss = 0.0
@@ -51,7 +58,11 @@ def run_epoch(model, optimizer, loader,
         bio_y = batch["bio_y"].to(device)
 
         with torch.set_grad_enabled(training):
-            bio_logits = model(
+
+            # --- forward pass ---
+            # model now returns (logits, embeddings); _ discards embeddings
+            # when CSEL is off so there's no overhead in eval paths.
+            bio_logits, node_embeddings = model(
                 enc=enc,
                 node_offsets=batch["node_offsets"],
                 node_mask=node_mask,
@@ -60,9 +71,42 @@ def run_epoch(model, optimizer, loader,
                 num_feats=batch["num_feats"].to(device),
                 bool_feats=batch["bool_feats"].to(device),
             )
-
+ 
+            # --- BIO cross-entropy (unchanged) ---
             loss = loss_fn(bio_logits.view(-1, 3), bio_y.view(-1))
-
+ 
+            # --- CSEL regularizer (training only, when enabled) ---
+            if training and lambda_csel > 0.0:
+                # batch_size is always 1, so we process the single page.
+                # We strip padding using node_mask so csel_loss only sees
+                # real nodes — no -100 sentinels, no padded zeros.
+                B = node_mask.size(0)
+                csel_total = torch.tensor(0.0, device=device)
+                n_pages = 0
+ 
+                for b in range(B):
+                    valid_idx = torch.where(node_mask[b])[0]   # real node positions
+                    if valid_idx.numel() < 2:
+                        continue
+ 
+                    # embeddings for real nodes on this page: (N_valid, d_model)
+                    page_embeddings = node_embeddings[b, valid_idx]
+ 
+                    # BIO labels for real nodes — guaranteed no -100 here
+                    page_bio_y = bio_y[b, valid_idx]
+ 
+                    # skip pages with fewer than 2 B-nodes (nothing to contrast)
+                    if (page_bio_y == 1).sum() < 2:
+                        continue
+ 
+                    csel_total = csel_total + csel_loss(
+                        page_embeddings, page_bio_y, device
+                    )
+                    n_pages += 1
+ 
+                if n_pages > 0:
+                    loss = loss + lambda_csel * (csel_total / n_pages)
+ 
             if training:
                 optimizer.zero_grad(set_to_none=True)
                 loss.backward()

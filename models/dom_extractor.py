@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from transformers import AutoModel
-
+from helpers.ssab import StructuralSelfAttentionBias, BiasedTransformerEncoder
 
 # DOM Extractor Model -------------------------------------------------
 
@@ -64,11 +64,11 @@ class DOMAwareEventExtractor(nn.Module):
 
         self.layernorm = nn.LayerNorm(d_model)
 
-        # DOM transformer
-        enc_layer = nn.TransformerEncoderLayer(
-            d_model=d_model, nhead=nhead, dropout=dropout, batch_first=True
+        # DOM transformer with Structural Self-Attention Bias (SSAB)
+        self.ssab = StructuralSelfAttentionBias()
+        self.node_encoder = BiasedTransformerEncoder(
+            d_model=d_model, nhead=nhead, num_layers=num_layers, dropout=dropout
         )
-        self.node_encoder = nn.TransformerEncoder(enc_layer, num_layers=num_layers)
 
         # ── Anchor Prototype Attention (APA) ──────────────────────────────
         # apa_query   : learned vector that attends over node embeddings to
@@ -114,8 +114,9 @@ class DOMAwareEventExtractor(nn.Module):
         x = self.layernorm(x)
 
         # ── 4. DOM transformer ────────────────────────────────────────────
-        key_padding_mask = ~node_mask          # True = ignore (padding)
-        x = self.node_encoder(x, src_key_padding_mask=key_padding_mask)
+        key_padding_mask = ~node_mask
+        attn_bias = self.ssab(tag_id, parent_tag_id, num_feats[:,:,0].long(), num_feats[:,:,1].long(), node_mask)
+        x = self.node_encoder(x, attn_bias=attn_bias, src_key_padding_mask=key_padding_mask)
         # x : [B, max_nodes, d_model] — contextual node representations
 
         # ── 5. Anchor Prototype Attention (APA) ───────────────────────────

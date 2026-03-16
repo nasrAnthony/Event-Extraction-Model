@@ -33,7 +33,7 @@ class StructuralSelfAttentionBias(nn.Module):
     
     def __init__(self):
         super().__init__()
-        self.bias_weights = nn.Parameter(torch.ones(4) * 0.5)
+        self.bias_weights = nn.Parameter(torch.ones(4) * 2.0)
     
     def forward(self, tag_id, parent_tag_id, depth, sibling_index, node_mask):
         """

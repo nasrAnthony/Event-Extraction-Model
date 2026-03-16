@@ -3,6 +3,7 @@ from functools import partial
 from torch.utils.data import DataLoader
 from helpers.dataset import PageDataset, combine_pages
 from helpers.losses import csel_loss
+from helpers.bcl import boundary_contrast_loss, reconstruct_event_ids_from_bio
 
 
 # Data Loader ------------------------------------------------
@@ -39,7 +40,9 @@ def make_loader(df, tokenizer,
 def run_epoch(model, optimizer, loader,
               loss_fn, device,
               training=True,
-              lambda_csel=0.0):
+              lambda_csel=0.0, 
+              lambda_taco=0.0,
+              lambda_bcl=0.0):
     """
     Runs one full pass through the loader.
     Returns average loss per batch.
@@ -75,38 +78,46 @@ def run_epoch(model, optimizer, loader,
             # --- BIO cross-entropy (unchanged) ---
             loss = loss_fn(bio_logits.view(-1, 3), bio_y.view(-1))
  
-            # --- CSEL regularizer (training only, when enabled) ---
-            if training and lambda_csel > 0.0:
-                # batch_size is always 1, so we process the single page.
-                # We strip padding using node_mask so csel_loss only sees
-                # real nodes — no -100 sentinels, no padded zeros.
+            # CSEL + TACO + BCL — training only
+            if training and (lambda_csel > 0.0 or lambda_taco > 0.0 or lambda_bcl > 0.0):
                 B = node_mask.size(0)
+
                 csel_total = torch.tensor(0.0, device=device)
-                n_pages = 0
- 
+                taco_total = torch.tensor(0.0, device=device)
+                n_pages    = 0
+
                 for b in range(B):
-                    valid_idx = torch.where(node_mask[b])[0]   # real node positions
+                    valid_idx = torch.where(node_mask[b])[0]
                     if valid_idx.numel() < 2:
                         continue
- 
-                    # embeddings for real nodes on this page: (N_valid, d_model)
-                    page_embeddings = node_embeddings[b, valid_idx]
- 
-                    # BIO labels for real nodes — guaranteed no -100 here
+
+                    page_emb   = node_embeddings[b, valid_idx]
                     page_bio_y = bio_y[b, valid_idx]
- 
-                    # skip pages with fewer than 2 B-nodes (nothing to contrast)
+
                     if (page_bio_y == 1).sum() < 2:
                         continue
- 
-                    csel_total = csel_total + csel_loss(
-                        page_embeddings, page_bio_y, device
-                    )
+
+                    # FIX: reconstruct real event IDs from BIO for CSEL
+                    if lambda_csel > 0.0:
+                        event_ids = reconstruct_event_ids_from_bio(page_bio_y)
+                        csel_total = csel_total + csel_loss(page_emb, event_ids, device)
+
+                    if lambda_taco > 0.0:
+                        taco_total = taco_total + taco_loss(page_emb, page_bio_y, device)
+
                     n_pages += 1
- 
+
                 if n_pages > 0:
-                    loss = loss + lambda_csel * (csel_total / n_pages)
- 
+                    if lambda_csel > 0.0:
+                        loss = loss + lambda_csel * (csel_total / n_pages)
+                    if lambda_taco > 0.0:
+                        loss = loss + lambda_taco * (taco_total / n_pages)
+
+                # BCL operates on full batch embeddings (not per-page)
+                if lambda_bcl > 0.0:
+                    loss = loss + lambda_bcl * boundary_contrast_loss(
+                        node_embeddings, bio_y, node_mask, device
+                    )
             if training:
                 optimizer.zero_grad(set_to_none=True)
                 loss.backward()

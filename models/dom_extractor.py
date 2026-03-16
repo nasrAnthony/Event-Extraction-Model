@@ -42,9 +42,11 @@ class DOMAwareEventExtractor(nn.Module):
         num_layers: int = 2,
         dropout: float = 0.2,
         use_tag=True,
-        use_parent_tag=True
+        use_parent_tag=True,
+        text_drop_rate: float = 0.0
     ):
         super().__init__()
+        self.text_drop_rate = text_drop_rate
 
         # text encoder (DistilBERT)
         self.text_encoder = AutoModel.from_pretrained(text_model_name)
@@ -87,6 +89,10 @@ class DOMAwareEventExtractor(nn.Module):
         out      = self.text_encoder(**enc)
         cls      = out.last_hidden_state[:, 0, :]   # [total_nodes, text_dim]
         node_text = self.text_proj(cls)             # [total_nodes, d_model]
+
+        if self.training and self.text_drop_rate > 0:
+            drop_mask = (torch.rand(node_text.size(0), 1, device=node_text.device) > self.text_drop_rate).float()
+            node_text = node_text * drop_mask
 
         # ── 2. Re-pack flat nodes → [B, max_nodes, d_model] ──────────────
         B, max_nodes = node_mask.shape
@@ -164,7 +170,8 @@ def init_model_and_optim(cfg, tag_vocab_size, parent_tag_vocab_size,
         num_layers=model_cfg["num_layers"],
         dropout=model_cfg["dropout"],
         use_tag=model_cfg.get("use_tag", True),
-        use_parent_tag=model_cfg.get("use_parent_tag", True)
+        use_parent_tag=model_cfg.get("use_parent_tag", True),
+        text_drop_rate=model_cfg.get("text_drop_rate", 0.0)
     ).to(device)
 
     bert_params  = []

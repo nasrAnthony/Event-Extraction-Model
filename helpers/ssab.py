@@ -33,7 +33,7 @@ class StructuralSelfAttentionBias(nn.Module):
     
     def __init__(self):
         super().__init__()
-        self.bias_weights = nn.Parameter(torch.ones(4) * 2.0)
+        self.bias_weights = nn.Parameter(torch.ones(4) * 0.5)
     
     def forward(self, tag_id, parent_tag_id, depth, sibling_index, node_mask):
         """
@@ -131,7 +131,10 @@ class BiasedTransformerEncoderLayer(nn.Module):
         
         # THIS IS WHERE SSAB HAPPENS: add structural bias to attention scores
         if attn_bias is not None:
-            scores = scores + attn_bias.unsqueeze(1)  # broadcast [B,1,N,N] across heads
+            # apply structural bias to first half of heads only, but stronger
+            head_mask = torch.zeros(1, self.nhead, 1, 1, device=scores.device)
+            head_mask[0, :self.nhead // 2] = 1.0
+            scores = scores + attn_bias.unsqueeze(1) * head_mask * 2.0
         
         if src_key_padding_mask is not None:
             scores = scores.masked_fill(

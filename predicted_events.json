@@ -1,0 +1,53 @@
+[
+  {
+    "event_number": 0,
+    "node_range": [
+      11,
+      19
+    ],
+    "fields": {
+      "Date": "saturday, april 1",
+      "Location": "boise state university, jordan ballroom",
+      "Time": "11:00am-1:00pm",
+      "Name": "snohomish county fair"
+    }
+  },
+  {
+    "event_number": 1,
+    "node_range": [
+      19,
+      26
+    ],
+    "fields": {
+      "Date": "thursday, april 2",
+      "Location": "meadowdale high school",
+      "Time": "6:00-8:00pm",
+      "Name": "seattle fair"
+    }
+  },
+  {
+    "event_number": 2,
+    "node_range": [
+      26,
+      33
+    ],
+    "fields": {
+      "Date": "saturday, april 2",
+      "Time": "5,",
+      "Location": "seattle university",
+      "Name": "portland fair"
+    }
+  },
+  {
+    "event_number": 3,
+    "node_range": [
+      33,
+      41
+    ],
+    "fields": {
+      "Date": "sunday, april 2",
+      "Location": "university of portland",
+      "Time": "12:00-3:00pm"
+    }
+  }
+]

@@ -1,4 +1,3 @@
-import io
 import pandas as pd
 from pathlib import Path
 import importlib.util
@@ -15,12 +14,11 @@ spec.loader.exec_module(streamlit_app)
 
 
 def test_parse_uploaded_file_reads_csv():
-    csv = "text_context,tag,event_id\nhello,tag1,\nworld,tag2,e1\n"
-    f = io.BytesIO(csv.encode())
-    df = streamlit_app.parse_uploaded_file(f)
+    csv = "rendering_order,text_context,tag,parent_tag\n1,hello,p,div\n2,world,span,div\n"
+    df = streamlit_app.parse_uploaded_file(csv.encode())
     assert isinstance(df, pd.DataFrame)
     assert len(df) == 2
-    assert list(df.columns) == ["text_context", "tag", "event_id"]
+    assert list(df.columns) == ["rendering_order", "text_context", "tag", "parent_tag"]
 
 
 def test_parse_uploaded_file_none_returns_empty():
@@ -28,9 +26,17 @@ def test_parse_uploaded_file_none_returns_empty():
     assert df.empty
 
 
-def test_extract_events_adds_column():
-    df = pd.DataFrame({"text_context": ["a", "b"], "tag": ["t", "t2"], "event_id": [None, "e1"]})
-    out = streamlit_app.extract_events_from_df(df, model=None)
-    assert "is_event_pred" in out.columns
-    assert len(out) == 2
-    assert out["is_event_pred"].tolist() == [0, 0]
+def test_demo_extract_events_uses_default_source():
+    class MockDemoModel:
+        def predict(self, X):
+            return [1 for _ in range(len(X))]
+
+    df = pd.DataFrame({
+        "rendering_order": [1],
+        "text_context": ["open house saturday 10am"],
+        "tag": ["p"],
+        "parent_tag": ["div"],
+    })
+
+    events = streamlit_app.demo_extract_events(df, MockDemoModel())
+    assert events == [{"source": "uploaded_file", "node_range": "0-0"}]

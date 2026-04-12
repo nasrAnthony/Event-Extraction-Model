@@ -1,2 +1,11 @@
 /.venv/
 .env
+
+# Python cache / build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# macOS / editor clutter
+.DS_Store
